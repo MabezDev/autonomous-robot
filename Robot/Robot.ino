@@ -1,11 +1,15 @@
 /*
  * Autonomous Robot (23/06/16)
  * 
- * 
+ *  Updates:
+ *    -  (24/06/16) Added and tested pivod command, allows for precise rotation of the robot from 1 to 360 degrees, using logic to determine whether to travel clockwise or anti-clockwise.
+ *    -  (25/06/16) Added the basic decision making loop, and the robot and avoid (some) big obstacles.
  * 
  * Todo:
  *  - Add take over mode where we can control it over wifi or bluetooth or nrf's
  *      - Will need ack packets from the robot top the commander as there a re blocking loops in this(See : sweep())
+ *  - Improve direction choosing algorithm
+ *  - Add limit switches to detect collision the ultrasonic sensor cannot see.
  * 
  */
 
@@ -23,11 +27,11 @@
 #define LEFT_REVERSE 5 //cant use 9  and 10 as it conflicts with the servo lib
 #define FORWARD_POSITION 90
 
-#define SPEED 0.125 //calculated for this specific robot in m/s
+#define ROTATION_SPEED 0.225 //calculated for this specific robot in m/s
 #define RADIUS 0.085 //calculated for this specific robot in m
 
 int pos = 0;
-int sonarArray[37];
+int sonarArray[19];
 
 Servo myservo;
 NewPing sonar(TRIGGER_PIN, ECHO_PIN, MAX_DISTANCE); // NewPing setup of pins and maximum distance.
@@ -61,23 +65,11 @@ void loop() {
     Serial.print("Heading ");
     Serial.print(degrees);
     Serial.println(" degrees from current position.");
-
-    //test pivots working perfectly
-    pivot(45);
-
-    delay(5000);
-
-    pivot(180);
-
-    delay(5000);
-
-    pivot(270);
+    
+    pivot(degrees);
   } else {
-    //drive(7,100);
-    //drive(LEFT_FORWARD,100);
-    //Serial.print("Heading FORWARD at ");
-    //Serial.print((100.0/255.0) * 100);
-    //Serial.println("% speed.");
+    drive(LEFT_FORWARD,100);
+    drive(RIGHT_FORWARD,100);
   }
   delay(50);
  
@@ -86,7 +78,23 @@ void loop() {
 
 int chooseDirection(){
   //find groups of lots of space (groups of 3 over a hundered cm's in a row) and return the degree where that is ( i * 5 will give a degree from 0 to 180 in 5 increment steps)
-  return 0;
+  /*
+   * This 'algorithm' is not very smart, but serves well enough to get some basic decision making to move around big objects
+   */
+  int index = 0;
+  int longest = sonarArray[0];
+  for(int i = 1; i < 17;i++){
+    if(sonarArray[i] > longest){
+      longest = sonarArray[i];
+      index = i;
+    }
+  }
+  Serial.print("Higest value found was ");
+  Serial.print(longest);
+  Serial.print(" at ");
+  Serial.print(index * 10);
+  Serial.println(" degrees.");
+  return index * 10;
 }
 
 
@@ -111,9 +119,9 @@ void pivot(int degrees){
     degrees -= 180;
     clockwise = false; 
   }
-  float time = ((2 * PI * 0.085 * (degrees/360.000))/(0.225) + 0.1); // 0.1 is estimated acceleration time
+  float time = ((2 * PI * RADIUS * (degrees/360.000))/(ROTATION_SPEED) + 0.1); // 0.1 is estimated acceleration time
   if(degrees > 90){
-    time += 0.1;
+    time += 0.1; // added time for longer distances as we were coming a tad short when we wanted to get to 180
   }
   int timemS = time * 1000;
   
@@ -151,7 +159,7 @@ void sweep(){
   myservo.write(0);
   delay(300);
   int index = 0;
-  for(pos = 0; pos <= 180; pos += 5) // goes from 0 degrees to 180 degrees 
+  for(pos = 0; pos <= 180; pos += 10) // goes from 0 degrees to 180 degrees 
   {                                  // in steps of 5 degrees
     myservo.write(pos);              // tell servo to go to position in variable 'pos' 
     sonarArray[index] = sonar.ping_cm();
@@ -163,9 +171,9 @@ void sweep(){
 
   Serial.println("Sweep Complete!");
   Serial.println("Sweep Data: ");
-  for(int i = 0; i <37; i ++){
+  for(int i = 0; i <19; i ++){
     Serial.print("Degree: ");
-    Serial.print(i*5);
+    Serial.print(i*10);
     Serial.print(" Distance: ");
     Serial.println(sonarArray[i]);
   }
