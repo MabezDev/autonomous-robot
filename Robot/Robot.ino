@@ -1,5 +1,5 @@
 /*
- * Avoidance Robot (23/06/16)
+ * Autonomous Robot (23/06/16)
  * 
  * 
  * 
@@ -13,14 +13,14 @@
 #include <Servo.h>
 #include <NewPing.h>
 
-#define TRIGGER_PIN  4  // Arduino pin tied to trigger pin on the ultrasonic sensor.
-#define ECHO_PIN     5  // Arduino pin tied to echo pin on the ultrasonic sensor.
+#define TRIGGER_PIN  2  // Arduino pin tied to trigger pin on the ultrasonic sensor.
+#define ECHO_PIN     4  // Arduino pin tied to echo pin on the ultrasonic sensor.
 #define MAX_DISTANCE 350 // Maximum distance we want to ping for (in centimeters). Maximum sensor distance is rated at 400-500cm.
 
 #define RIGHT_FORWARD 11
-#define RIGHT_REVERSE 12
-#define LEFT_FORWARD 6
-#define LEFT_REVERSE 7 //cant use 9  and 10 as it conflicts with the servo lib
+#define RIGHT_REVERSE 6
+#define LEFT_FORWARD 3
+#define LEFT_REVERSE 5 //cant use 9  and 10 as it conflicts with the servo lib
 #define FORWARD_POSITION 90
 
 #define SPEED 0.125 //calculated for this specific robot in m/s
@@ -47,7 +47,7 @@ void setup(){
 
 void loop() {
   int distanceInFront = sonar.ping_cm();
-  //Serial.println(distanceInFront);
+  Serial.println(distanceInFront);
   if(distanceInFront < 20 && distanceInFront!= 1149){ // if an object is closer than 20 cm sweep then choose a new direction and checking if its a valid ping (returns unsigned -1 which is 1149), I changed this in the library
     //stop
     drive(RIGHT_FORWARD,0);
@@ -62,25 +62,25 @@ void loop() {
     Serial.print(degrees);
     Serial.println(" degrees from current position.");
 
-    pivot(90,true);
+    //test pivots working perfectly
+    pivot(45);
+
+    delay(5000);
+
+    pivot(180);
+
+    delay(5000);
+
+    pivot(270);
   } else {
-    //drive(RIGHT_FORWARD,100);
+    //drive(7,100);
     //drive(LEFT_FORWARD,100);
-    Serial.print("Heading FORWARD at ");
-    Serial.print((100.0/255.0) * 100);
-    Serial.println("% speed.");
+    //Serial.print("Heading FORWARD at ");
+    //Serial.print((100.0/255.0) * 100);
+    //Serial.println("% speed.");
   }
   delay(50);
-  
-  /*drive(RIGHT_FORWARD,100);
-  drive(LEFT_FORWARD,100);
-
-  delay(2000);
-
-  drive(RIGHT_FORWARD,0);
-  drive(LEFT_FORWARD,0);
-
-  delay(5000);*/
+ 
   
 }
 
@@ -90,7 +90,7 @@ int chooseDirection(){
 }
 
 
-void pivot(int degrees, bool clockwise){
+void pivot(int degrees){
   /*
    * t = d/s, arc length = (2* PI * r * theta), radians = degrees/360
    *  We measure speed to be 0.125 m/s (simple distance of time test)
@@ -104,21 +104,45 @@ void pivot(int degrees, bool clockwise){
    *  
    *  x1000 to convert to milliseconds for out delay function
    * 
+   * Doesnt currently account for acceleration
    */
-  int time = ((2 * PI * 0.085 * (degrees/360.000))/(0.125)) * 1000;
+  bool clockwise = true;
+  if(degrees > 180){
+    degrees -= 180;
+    clockwise = false; 
+  }
+  float time = ((2 * PI * 0.085 * (degrees/360.000))/(0.225) + 0.1); // 0.1 is estimated acceleration time
+  if(degrees > 90){
+    time += 0.1;
+  }
+  int timemS = time * 1000;
+  
   Serial.print("Time to run motors to reach ");
   Serial.print(degrees);
   Serial.print(" from current position: ");
-  Serial.print(time);
-  Serial.println(" milliseconds");
+  Serial.print(timemS);
+  Serial.print(" milliseconds");
+  if(clockwise){
+    Serial.println(" in the clockwise direction.");
+  } else {
+    Serial.println(" in the anti-clockwise direction.");
+  }
 
   Serial.println("Starting pivot");
 
-  drive(RIGHT_REVERSE,100);
-  drive(LEFT_FORWARD,100);
-  delay(time);
-  drive(RIGHT_REVERSE,0);
-  drive(LEFT_FORWARD,0);
+  if(clockwise){
+    drive(RIGHT_REVERSE,100);
+    drive(LEFT_FORWARD,100);
+    delay(timemS);
+    drive(RIGHT_REVERSE,0);
+    drive(LEFT_FORWARD,0);
+  } else {
+    drive(RIGHT_FORWARD,100);
+    drive(LEFT_REVERSE,100);
+    delay(timemS);
+    drive(RIGHT_FORWARD,0);
+    drive(LEFT_REVERSE,0);
+  }
 
   Serial.println("Pivot complete!");
 }
