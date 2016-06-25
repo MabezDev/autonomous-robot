@@ -89,6 +89,10 @@ int chooseDirection(){
       index = i;
     }
   }
+
+  if(longest < 25){ if the longest distance we found was only 25 cm turn arounds and check
+    index = 18; // do a 180, 
+  }
   Serial.print("Higest value found was ");
   Serial.print(longest);
   Serial.print(" at ");
